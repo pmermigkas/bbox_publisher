@@ -1,0 +1,22 @@
+- id: BS_2
+  ipto_id: bush_1b
+  description: Bushing
+  pointA:
+    x: 1.356
+    y: -16.237
+    z: 3.992
+  pointB:
+    x: 2.406
+    y: -15.840
+    z: 5.692
+- id: VT_5
+  ipto_id: voltr_2c
+  description: Voltage_Transformer
+  pointA:
+    x: -13.243
+    y: -19.356
+    z: 3.480
+  pointB:
+    x: -12.868
+    y: -18.958
+    z: 5.280

@@ -167,7 +167,7 @@ void publishCuboidBBoxes(const ros::Publisher& publisherCuboidBBoxLines, const s
 	for ( std::vector<ElectricalComponent>::const_iterator it = vecElectricalComponents.begin(); it != vecElectricalComponents.end(); ++it) {
 		const ElectricalComponent electrical_component = *it;
 
-		if ( ipto_id == "ALL" || ipto_id == electrical_component.ipto_id ) {
+		if ( ipto_id == "ALL_" || ipto_id == electrical_component.ipto_id ) {
 			const std::vector<Line> vecCuboidBBoxLines = getCuboidLines(electrical_component.cornerMin, electrical_component.cornerMax);
 	
 			for (std::vector<Line>::const_iterator line = vecCuboidBBoxLines.begin(); line != vecCuboidBBoxLines.end(); ++line) {
@@ -184,6 +184,7 @@ void publishCuboidBBoxes(const ros::Publisher& publisherCuboidBBoxLines, const s
     publisherCuboidBBoxLines.publish(markerArray);
 }
 
+// Should accept Electrical Components with ipto_id "bush_1b" or "bush_1b_F2" (for a specific face)
 void splitString(const std::string& text, std::string& ipto_id, unsigned int face_number) {
 	const char target = '_';
 
@@ -321,7 +322,7 @@ int main(int argc, char **argv) {
 	
 	ros::Subscriber sub = nh.subscribe("ipto_id_bbox", 1, stringCallback);
 	
-	const std::string fname_YAML = "/home/tetix/Dropbox/ENORASI_tmp/octomap_visibility_requirements/segmentation_2D_e=0.12_Z4-65.yaml";
+	const std::string fname_YAML = "/home/tetix/catkin_ws/src/bbox_publisher/config/sample.yaml";
 	loadYAMLParameters(fname_YAML, vecElectricalComponents);
 	
 	publisherCuboidBBoxLines = nh.advertise<visualization_msgs::MarkerArray>("cuboid_bbox_lines", 1, true);
