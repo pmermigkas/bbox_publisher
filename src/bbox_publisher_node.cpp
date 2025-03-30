@@ -17,12 +17,11 @@ std::vector<ElectricalComponent> vecElectricalComponents;
 ros::Publisher publisherCuboidBBoxLines;
 
 void loadYAMLParameters(const std::string& yaml_filename, std::vector<ElectricalComponent>& vecElectricalComponents) {
-  	
 	std::cout << std::endl;
 	std::cout << "<-------------------------------------------------------------------------->" << std::endl;
 	std::cout << "<----------- load YAML file (with source points for Raycasting) ----------->" << std::endl;
 	std::cout << "<-------------------------------------------------------------------------->" << std::endl;
-  
+
 	YAML::Node yamlNode = YAML::LoadFile(yaml_filename);
 	
 	std::cout << "YAML file " << yaml_filename << " loaded successfully with a size of " << yamlNode.size() << ". The following BBoxes (Electrical Components) were loaded:" << std::endl;
@@ -30,7 +29,7 @@ void loadYAMLParameters(const std::string& yaml_filename, std::vector<Electrical
 	vecElectricalComponents.clear();
 	for ( YAML::const_iterator it = yamlNode.begin(); it != yamlNode.end(); ++it ) {
 		
-		YAML::Node component_node = *it;  		
+		YAML::Node component_node = *it;
 
 		YAML::Node component_id_node = component_node["id"]; // id, ipto_id, description, pointMin, pointMax are a "mapping" so [] is used
 		YAML::Node component_ipto_id_node = component_node["ipto_id"];
@@ -42,7 +41,7 @@ void loadYAMLParameters(const std::string& yaml_filename, std::vector<Electrical
 		const std::string component_ipto_id = component_ipto_id_node.as<std::string>();
 		const std::string component_description = component_description_node.as<std::string>();
 		const double component_pointA_x = component_pointA_node["x"].as<double>(); // x, y, z are a "mapping" so [] is used
-	  	const double component_pointA_y = component_pointA_node["y"].as<double>();
+		const double component_pointA_y = component_pointA_node["y"].as<double>();
 		const double component_pointA_z = component_pointA_node["z"].as<double>();
 		const double component_pointB_x = component_pointB_node["x"].as<double>();
 		const double component_pointB_y = component_pointB_node["y"].as<double>();
@@ -53,7 +52,7 @@ void loadYAMLParameters(const std::string& yaml_filename, std::vector<Electrical
 		// Because corners can be entered in any order, determine "Low" and "High" corners
 		const Eigen::Vector3d component_cornerMin = Eigen::Vector3d( std::min(component_pointA_x, component_pointB_x), std::min(component_pointA_y, component_pointB_y), std::min(component_pointA_z, component_pointB_z) );
 		const Eigen::Vector3d component_cornerMax = Eigen::Vector3d( std::max(component_pointA_x, component_pointB_x), std::max(component_pointA_y, component_pointB_y), std::max(component_pointA_z, component_pointB_z) );
-	  
+		
 
 
 		
@@ -69,10 +68,7 @@ void loadYAMLParameters(const std::string& yaml_filename, std::vector<Electrical
 	
 }
 
-const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> getCuboidLines(const Eigen::Vector3d &cornerMin, const Eigen::Vector3d &cornerMax) {
-
-	// test p = octomap(); push p; p=p'; push(p) if it is the same
-
+const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> getCuboidLines(const Eigen::Vector3d& cornerMin, const Eigen::Vector3d& cornerMax) {
 	std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> vecOfCuboidLines;
 
 
@@ -106,11 +102,10 @@ const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> getCuboidLines(co
 
 	return vecOfCuboidLines;
 
-  }
+}
 
 void addLineToMarkerArray(const Line& line, visualization_msgs::MarkerArray& markerArray) {
-
-    const float radius = 0.02;
+	const float radius = 0.02;
 
 	// We have constructed startPoint with lower coords than endPoint
 	geometry_msgs::Point startPoint;
@@ -130,7 +125,7 @@ void addLineToMarkerArray(const Line& line, visualization_msgs::MarkerArray& mar
 	edge.id = markerArray.markers.size();
 	edge.type = visualization_msgs::Marker::CYLINDER;
 	edge.action = visualization_msgs::Marker::ADD;
-	edge.color.r = 0.0;  // Green
+	edge.color.r = 0.0; // Green
 	edge.color.g = 1.0;
 	edge.color.b = 0.0;
 	edge.color.a = 1.0;
@@ -144,7 +139,7 @@ void addLineToMarkerArray(const Line& line, visualization_msgs::MarkerArray& mar
 	Eigen::Vector3d dir(endPoint.x - startPoint.x, endPoint.y - startPoint.y, endPoint.z - startPoint.z);
 	edge.scale.x = radius * 2; // Diameter
 	edge.scale.y = radius * 2; // Diameter
-	edge.scale.z = dir.lpNorm<Eigen::Infinity>();  // Height = edge length
+	edge.scale.z = dir.lpNorm<Eigen::Infinity>(); // Height = edge length
 	dir.normalize();
 	Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), dir);
 	edge.pose.orientation.x = q.x();
@@ -155,13 +150,88 @@ void addLineToMarkerArray(const Line& line, visualization_msgs::MarkerArray& mar
 	markerArray.markers.push_back(edge); // Add to array
 }
 
-void publishCuboidBBoxes(const ros::Publisher& publisherCuboidBBoxLines, const std::string& ipto_id, const unsigned int face_number) {
+void addPlaneToMarkerArray(const ElectricalComponent& electrical_component, const unsigned int& face_number, visualization_msgs::MarkerArray& markerArray) {
+	if ( face_number > 0 ) {
+		// Create a transparent plane marker
+		visualization_msgs::Marker plane;
+		plane.header.frame_id = "map";
+		plane.header.stamp = ros::Time::now();
+		plane.ns = "transparent_plane";
+		plane.id = face_number; // Unique ID for this marker
+		plane.type = visualization_msgs::Marker::CUBE; // Using CUBE for a flat plane
+		plane.action = visualization_msgs::Marker::ADD;
+		
+		Eigen::Vector3d dir;
+		// Midpoint position and orientation
+		if ( face_number == 1 ) {
+			plane.pose.position.x = ( electrical_component.cornerMin.x() + electrical_component.cornerMax.x() ) / 2;
+			plane.pose.position.y = electrical_component.cornerMin.y();
+			plane.pose.position.z = ( electrical_component.cornerMin.z() + electrical_component.cornerMax.z() ) / 2;
 
+			dir = Eigen::Vector3d(0, -1, 0);
+
+			plane.scale.x = electrical_component.cornerMax.x() - electrical_component.cornerMin.x();
+			plane.scale.y = electrical_component.cornerMax.z() - electrical_component.cornerMin.z();
+		}
+		else if ( face_number == 2 ) {
+			plane.pose.position.x = electrical_component.cornerMax.x();
+			plane.pose.position.y = ( electrical_component.cornerMin.y() + electrical_component.cornerMax.y() ) / 2;
+			plane.pose.position.z = ( electrical_component.cornerMin.z() + electrical_component.cornerMax.z() ) / 2;
+
+			dir = Eigen::Vector3d(1, 0, 0);
+
+			plane.scale.x = electrical_component.cornerMax.z() - electrical_component.cornerMin.z();
+			plane.scale.y = electrical_component.cornerMax.y() - electrical_component.cornerMin.y();
+		}
+		else if ( face_number == 3 ) {
+			plane.pose.position.x = ( electrical_component.cornerMin.x() + electrical_component.cornerMax.x() ) / 2;
+			plane.pose.position.y = electrical_component.cornerMax.y();
+			plane.pose.position.z = ( electrical_component.cornerMin.z() + electrical_component.cornerMax.z() ) / 2;
+
+			dir = Eigen::Vector3d(0, 1, 0);
+
+			plane.scale.x = electrical_component.cornerMax.x() - electrical_component.cornerMin.x();
+			plane.scale.y = electrical_component.cornerMax.z() - electrical_component.cornerMin.z();
+		}
+		else if ( face_number == 4 ) {
+			plane.pose.position.x = electrical_component.cornerMin.x();
+			plane.pose.position.y = ( electrical_component.cornerMin.y() + electrical_component.cornerMax.y() ) / 2;
+			plane.pose.position.z = ( electrical_component.cornerMin.z() + electrical_component.cornerMax.z() ) / 2;
+
+			dir = Eigen::Vector3d(-1, 0, 0);
+
+			plane.scale.x = electrical_component.cornerMax.z() - electrical_component.cornerMin.z();
+			plane.scale.y = electrical_component.cornerMax.y() - electrical_component.cornerMin.y();
+		}
+
+		// Eigen rotation (Z-axis to edge direction)
+		Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), dir);
+		plane.pose.orientation.x = q.x();
+		plane.pose.orientation.y = q.y();
+		plane.pose.orientation.z = q.z();
+		plane.pose.orientation.w = q.w();
+
+		// Dimensions (plane with negligible thickness)
+		plane.scale.z = 0.01; // Small thickness (Z-axis)
+
+		// Transparent light blue color (RGBA)
+		plane.color.r = 0.5;
+		plane.color.g = 0.5;
+		plane.color.b = 1.0;
+		plane.color.a = 0.7; // 30% opacity (0 = fully transparent, 1 = opaque)
+
+		markerArray.markers.push_back(plane);
+
+		std::cout << "Added a transparent plane (to represent the face) in the MarkerArray." << std::endl;
+	}
+
+}
+
+void publishCuboidBBoxes(const ros::Publisher& publisherCuboidBBoxLines, const std::string& ipto_id, const unsigned int face_number) {
 	visualization_msgs::MarkerArray markerArray;
 	visualization_msgs::Marker clearMarker;
-    clearMarker.action = visualization_msgs::Marker::DELETEALL;
-    clearMarker.ns = "bbox_edges";  // Same namespace used in function addLineToMarkerArray()
-    markerArray.markers.push_back(clearMarker);
+	clearMarker.action = visualization_msgs::Marker::DELETEALL;
+	markerArray.markers.push_back(clearMarker);
 
 	std::vector<Line> vecOfAllCuboidBBoxLines;
 	for ( std::vector<ElectricalComponent>::const_iterator it = vecElectricalComponents.begin(); it != vecElectricalComponents.end(); ++it) {
@@ -173,19 +243,20 @@ void publishCuboidBBoxes(const ros::Publisher& publisherCuboidBBoxLines, const s
 			for (std::vector<Line>::const_iterator line = vecCuboidBBoxLines.begin(); line != vecCuboidBBoxLines.end(); ++line) {
 				addLineToMarkerArray(*line, markerArray);
 			}
-	
 			std::cout << "Added 12 cylindrical edges in the MarkerArray." << std::endl;
+
+			addPlaneToMarkerArray(electrical_component, face_number, markerArray);
 		}
 	}
 
 	
 	
 	// ===== Publish ALL edges in ONE message =====
-    publisherCuboidBBoxLines.publish(markerArray);
+	publisherCuboidBBoxLines.publish(markerArray);
 }
 
 // Should accept Electrical Components with ipto_id "bush_1b" or "bush_1b_F2" (for a specific face)
-void splitString(const std::string& text, std::string& ipto_id, unsigned int face_number) {
+void splitString(const std::string& text, std::string& ipto_id, unsigned int& face_number) {
 	const char target = '_';
 
 	// Find the first '_'
@@ -215,92 +286,18 @@ void splitString(const std::string& text, std::string& ipto_id, unsigned int fac
 	return;
 }
 
-
-
 void stringCallback(const std_msgs::String::ConstPtr& msg) {
-    // ROS_INFO("Received: %s", msg->data.c_str()); // bush_1b_F3
-	
 	std::string ipto_id;
 	unsigned int face_number;
 	splitString(msg->data, ipto_id, face_number);
 
-
-    publishCuboidBBoxes(publisherCuboidBBoxLines, ipto_id, face_number);
+	publishCuboidBBoxes(publisherCuboidBBoxLines, ipto_id, face_number);
 }
 
-//   void publishCuboidFaceSources(const std::vector<Eigen::Vector3d>& vecOfCuboidFaceSources) {
-
-// 	cuboidFaceSources_publisher = pnh_.advertise<visualization_msgs::Marker>("cuboid_bbox_face_sources", 1, true);
-
-
-
-// 	const unsigned long colorValue = 1641198; // blue examples: red=15600153, green=65280, blue=1641198
-// 	/*if (!getParam("color", colorValue)) {
-// 		ROS_INFO("VectorVisualization with name '%s' did not find a 'color' parameter. Using default.", name_.c_str());
-// 	}*/
-  
-// 	Eigen::Vector3f colorVector;
-//   	grid_map::colorValueToVector(colorValue, colorVector);
-
-// 	std_msgs::ColorRGBA colorMsg;
-
-//     colorMsg.r = colorVector.x();
-//     colorMsg.g = colorVector.y();
-//     colorMsg.b = colorVector.z();
-//     colorMsg.a = 1;
-
-
-
-// 	// Marker to be published.
-//   	visualization_msgs::Marker marker;
-
-// 	// Set marker info.
-// 	marker.header.frame_id = m_gridMap->getFrameId();
-// 	marker.header.stamp.fromNSec(m_gridMap->getTimestamp());
-
-// 	marker.ns = "bbox_visualization";
-// 	marker.id = 0;
-
-// 	marker.type = visualization_msgs::Marker::CUBE_LIST;
-// 	marker.action = visualization_msgs::Marker::ADD;
-// 	marker.lifetime = ros::Duration();
-	
-// 	marker.scale.x = 0.1;
-// 	marker.scale.y = 0.1;
-// 	marker.scale.z = 0.1;
 
 
 
 
-// 	// Clear points.
-// 	marker.points.clear();
-// 	marker.colors.clear();
-// 	for (std::vector<Eigen::Vector3d>::const_iterator it = vecOfCuboidFaceSources.begin(); it != vecOfCuboidFaceSources.end(); ++it) {
-
-// 		geometry_msgs::Point cuboidFaceSource;
-// 		cuboidFaceSource.x = it->x();
-// 		cuboidFaceSource.y = it->y();
-// 		cuboidFaceSource.z = it->z();
-// 		marker.points.push_back(cuboidFaceSource);
-		
-// 		marker.colors.push_back(colorMsg); // Each vertex needs a color.
-
-// 	}
-
-// 	cuboidFaceSources_publisher.publish(marker);
-
-
-
-// }
-
-
-    
-    
-    
-    
-    
-    
-    
 
 
 
@@ -338,19 +335,6 @@ int main(int argc, char **argv) {
 	}
 
 	return 0;
-
-
-
-	// for (unsigned int i = 4; i <= 4; i++) {
-			// 	const unsigned char face_type = i;
-				
-			// 	Eigen::Vector3d face_center;
-			// 	std::vector<Eigen::Vector3d> vecOfCuboidFaceSources;
-			// 	octVis.determineCuboidFaceSources(electrical_component.cornerMin, electrical_component.cornerMax, face_type, face_size, face_center, vecOfCuboidFaceSources);
-			// 	octVis.publishCuboidFaceSources(vecOfCuboidFaceSources);
-			// }
-
-
 }
 
 
